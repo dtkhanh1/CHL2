@@ -286,46 +286,6 @@ end
 --// NEW: Improved Floating Icon Implementation
 local FloatingIcon = {}
 function FloatingIcon:Create()
-    local icon = Instance.new('ImageButton')
-    icon.Name = 'FloatingIcon'
-    icon.Image = 'rbxassetid://114178849342027'
-    icon.Size = UDim2.new(0, 50, 0, 50) -- Medium size square
-    icon.Position = UDim2.new(0, 100, 0, 100) -- Default position
-    icon.BackgroundTransparency = 1
-    icon.Visible = false
-    icon.ZIndex = 100
-    icon.Active = true
-
-    -- Make draggable
-    Drag(icon)
-
-    -- Create restore button
-    local restoreBtn = Instance.new('ImageButton')
-    restoreBtn.Name = 'RestoreButton'
-    restoreBtn.Image = 'rbxassetid://7734000129'
-    restoreBtn.Size = UDim2.new(0, 20, 0, 20)
-    restoreBtn.Position = UDim2.new(0, 5, 0, 5)
-    restoreBtn.BackgroundTransparency = 1
-    restoreBtn.Visible = true -- Always visible for better UX
-    restoreBtn.ZIndex = 101
-    restoreBtn.Parent = icon
-
-    -- Create exit button
-    local exitBtn = Instance.new('ImageButton')
-    exitBtn.Name = 'ExitButton'
-    exitBtn.Image = 'rbxassetid://7755372427'
-    exitBtn.Size = UDim2.new(0, 20, 0, 20)
-    exitBtn.Position = UDim2.new(1, -25, 0, 5)
-    exitBtn.BackgroundTransparency = 1
-    exitBtn.Visible = true -- Always visible for better UX
-    exitBtn.ZIndex = 101
-    exitBtn.Parent = icon
-
-    -- Add animations (đã no-op)
-    Animations:Component(restoreBtn, true)
-    Animations:Component(exitBtn, true)
-
-    icon.Parent = Screen
     return icon
 end
 
@@ -364,9 +324,6 @@ function Library:CreateWindow(Settings: {
     local Opened = true
     local Maximized = false
     local BlurEnabled = false
-
-    --// NEW: Create floating icon instance
-    local floatingIcon = FloatingIcon:Create()
 
     for Index, Example in next, Window:GetDescendants() do
         if Example.Name:find('Example') and not Examples[Example.Name] then
@@ -420,25 +377,12 @@ function Library:CreateWindow(Settings: {
         if BlurEnabled then
             Blurs[Settings.Title].root.Parent = nil
         end
-        floatingIcon.Visible = true
-        floatingIcon.Position = UDim2.new(0, 100, 0, 100)
+        -- (đã bỏ floatingIcon.Visible/Position)
     end
 
     -- Button functionality
     minimizeBtn.MouseButton1Click:Connect(HideWindow)
     exitBtn.MouseButton1Click:Connect(HideWindow)
-
-    -- Floating icon button functionality
-    floatingIcon.RestoreButton.MouseButton1Click:Connect(function()
-        Window.Visible = true
-        Opened = true
-        if BlurEnabled then
-            Blurs[Settings.Title].root.Parent = workspace.CurrentCamera
-        end
-        floatingIcon.Visible = false
-    end)
-
-    floatingIcon.ExitButton.MouseButton1Click:Connect(HideWindow)
 
     --// NEW: Properly structure the sidebar top bar with title and buttons
     local topBar = Sidebar:FindFirstChild('Top')
@@ -558,14 +502,14 @@ function Library:CreateWindow(Settings: {
             Opened = false
             Animations:Close(Window)
             Window.Visible = false
-            floatingIcon.Visible = true
+        -- (đã bỏ floatingIcon.Visible = true)
         else
             Animations:Open(Window, Setup.Transparency)
             Opened = true
             if BlurEnabled then
                 Blurs[Settings.Title].root.Parent = workspace.CurrentCamera
             end
-            floatingIcon.Visible = false
+            -- (đã bỏ floatingIcon.Visible = false)
         end
     end
 
@@ -575,14 +519,10 @@ function Library:CreateWindow(Settings: {
             Tween(Window, 0.15, { Size = Setup.Size })
         else
             Maximized = true
-            Tween(
-                Window,
-                0.15,
-                {
-                    Size = UDim2.fromScale(1, 1),
-                    Position = UDim2.fromScale(0.5, 0.5),
-                }
-            )
+            Tween(Window, 0.15, {
+                Size = UDim2.fromScale(1, 1),
+                Position = UDim2.fromScale(0.5, 0.5),
+            })
         end
     end
 
@@ -610,25 +550,17 @@ function Library:CreateWindow(Settings: {
 
                 if SameName and not Opened.Value then
                     Tween(Padding, 0.25, { PaddingLeft = UDim.new(0, 25) })
-                    Tween(
-                        Button,
-                        0.25,
-                        {
-                            BackgroundTransparency = 0.9,
-                            Size = UDim2.new(1, -15, 0, 30),
-                        }
-                    )
+                    Tween(Button, 0.25, {
+                        BackgroundTransparency = 0.9,
+                        Size = UDim2.new(1, -15, 0, 30),
+                    })
                     SetProperty(Opened, { Value = true })
                 elseif not SameName and Opened.Value then
                     Tween(Padding, 0.25, { PaddingLeft = UDim.new(0, 20) })
-                    Tween(
-                        Button,
-                        0.25,
-                        {
-                            BackgroundTransparency = 1,
-                            Size = UDim2.new(1, -44, 0, 30),
-                        }
-                    )
+                    Tween(Button, 0.25, {
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(1, -44, 0, 30),
+                    })
                     SetProperty(Opened, { Value = false })
                 end
             end
@@ -893,14 +825,10 @@ function Library:CreateWindow(Settings: {
                     0.2,
                     { BackgroundColor3 = Color3.fromRGB(153, 155, 255) }
                 )
-                Tween(
-                    Circle,
-                    0.2,
-                    {
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        Position = UDim2.new(1, -16, 0.5, 0),
-                    }
-                )
+                Tween(Circle, 0.2, {
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    Position = UDim2.new(1, -16, 0.5, 0),
+                })
                 stroke.Color = Theme.Outline or Color3.fromRGB(40, 40, 40)
             else
                 stroke.Color = Color3.fromRGB(0, 0, 0)
@@ -909,14 +837,10 @@ function Library:CreateWindow(Settings: {
                     0.2,
                     { BackgroundColor3 = Color3.fromRGB(255, 255, 255) }
                 ) -- track trắng
-                Tween(
-                    Circle,
-                    0.2,
-                    {
-                        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-                        Position = UDim2.new(0, 3, 0.5, 0),
-                    }
-                ) -- nút đen
+                Tween(Circle, 0.2, {
+                    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+                    Position = UDim2.new(0, 3, 0.5, 0),
+                }) -- nút đen
             end
 
             On.Value = Value
