@@ -1,6 +1,6 @@
 --[[
     User Interface Library
-    Madee by Late
+    Made by Sky
 ]]
 --// Connections
 local GetService = game.GetService
@@ -18,7 +18,6 @@ local Setup = {
     Transparency = 0.2,
     ThemeMode = "Dark",
     Size = nil,
-    SidebarWidth = 120, -- SKYBOY PATCH: chiều ngang sidebar có thể chỉnh
 }
 local Theme = { --// (Dark Theme)
     --// Frames:
@@ -289,7 +288,7 @@ local function createInputBlocker(parent, z)
 end
 
 --// Library [Window]
-function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparency: number, MinimizeKeybind: Enum.KeyCode?, Blurring: boolean, Theme: string, SidebarWidth: number? })
+function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparency: number, MinimizeKeybind: Enum.KeyCode?, Blurring: boolean, Theme: string })
     local Window = Clone(Screen:WaitForChild("Main"));
     local Sidebar = Window:FindFirstChild("Sidebar");
     local Holder = Window:FindFirstChild("Main");
@@ -301,17 +300,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
     local Maximized = false;
     local BlurEnabled = false
     
-    -- SKYBOY PATCH: tinh chỉnh SidebarWidth (ưu tiên Settings, fallback Setup)
-    local desiredSidebarWidth = (Settings and Settings.SidebarWidth) or Setup.SidebarWidth or 120
-    if Sidebar then
-        Sidebar.Size = UDim2.new(0, desiredSidebarWidth, 1, 0)
-    end
-    if Holder then
-        -- Đặt Holder chiếm phần còn lại bên phải
-        Holder.Position = UDim2.new(0, desiredSidebarWidth, 0, 0)
-        Holder.Size     = UDim2.new(1, -desiredSidebarWidth, 1, 0)
-    end
-
     --// NEW: Create floating icon instance
     local floatingIcon = FloatingIcon:Create()
     
@@ -388,7 +376,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
     floatingIcon.ExitButton.MouseButton1Click:Connect(HideWindow)
     
     --// NEW: Properly structure the sidebar top bar with title and buttons
-    local topBar = Sidebar and Sidebar:FindFirstChild("Top")
+    local topBar = Sidebar:FindFirstChild("Top")
     if topBar then
         for _, child in ipairs(topBar:GetChildren()) do
             if child.Name == "Title" or child.Name == "WindowControls" or child.Name == "TopBarContainer" or child.Name == "TitleContainer" or child.Name == "ButtonContainer" then
@@ -447,15 +435,13 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
         buttonLayout.Padding = UDim.new(0, 5)
         buttonLayout.Parent = buttonContainer
         
-        if Sidebar.Top and Sidebar.Top.Buttons then
-            for _, button in ipairs(Sidebar.Top.Buttons:GetChildren()) do
-                if button:IsA("TextButton") and button.Name ~= "Minimize" and button.Name ~= "Close" then
-                    button.Parent = buttonContainer
-                    Animations:Component(button, true)
-                end
+        for _, button in ipairs(Sidebar.Top.Buttons:GetChildren()) do
+            if button:IsA("TextButton") and button.Name ~= "Minimize" and button.Name ~= "Close" then
+                button.Parent = buttonContainer
+                Animations:Component(button, true)
             end
-            Sidebar.Top.Buttons:Destroy()
         end
+        Sidebar.Top.Buttons:Destroy()
         
         local function adjustTitleSize()
             local availableWidth = titleContainer.AbsoluteSize.X - 10
@@ -517,7 +503,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
         end
     end
     
-    local maximizeButton = Sidebar and Sidebar:FindFirstChild("Top", true) and Sidebar:FindFirstChild("Top", true):FindFirstChild("Maximize")
+    local maximizeButton = Sidebar:FindFirstChild("Top", true):FindFirstChild("Maximize")
     if maximizeButton then
         maximizeButton.MouseButton1Click:Connect(handleMaximizeButton)
     end
@@ -577,7 +563,7 @@ function Options:EnsureTabsHolder(Example)
 	if not self.TabsHolder then
 		local TabsHolder = Instance.new("ScrollingFrame")
 		TabsHolder.Name = "TabsHolder"
-		TabsHolder.Size = UDim2.new(0, Setup.SidebarWidth, 1, 0) -- SKYBOY PATCH: dùng SidebarWidth
+		TabsHolder.Size = UDim2.new(0, 150, 1, 0)
 		TabsHolder.Position = UDim2.new(0, 0, 0, 0)
 		TabsHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
 		TabsHolder.ScrollBarThickness = 6
@@ -851,7 +837,7 @@ function Options:AddDropdown(Settings: { Title: string, Description: string, Opt
 
 	local state = {
 		options = Settings.Options or {},
-        selection = nil,
+		selection = nil,
 		updateFunction = Settings.UpdateFunction
 	}
 
@@ -864,6 +850,7 @@ function Options:AddDropdown(Settings: { Title: string, Description: string, Opt
         s.Parent = frame
     end
 
+	-- Function to refresh the dropdown content
 	local function refreshDropdownContent(Example, ScrollingFrame)
 		for _, child in ipairs(ScrollingFrame:GetChildren()) do
 			if child:IsA("Frame") or child:IsA("TextButton") then
@@ -876,6 +863,7 @@ function Options:AddDropdown(Settings: { Title: string, Description: string, Opt
 			if not Button then continue end
 			local BtnTitle, BtnDescription = Options:GetLabels(Button)
 
+            -- SKYBOY PATCH: nền trắng, chữ đen + viền
 			SetProperty(BtnTitle, { Text = key, TextColor3 = Color3.fromRGB(0,0,0) })
 			if BtnDescription then Destroy(BtnDescription) end
 			SetProperty(Button, { 
@@ -890,9 +878,11 @@ function Options:AddDropdown(Settings: { Title: string, Description: string, Opt
 				Text.Text = key
 				Settings.Callback(value)
 				
+				-- Close popup
 				Tween(BG, .25, { BackgroundTransparency = 1 })
 				Animations:Close(Example)
 				task.wait(0.15)
+                -- blocker được hủy ở nơi tạo (đính kèm qua upvalue)
 				Destroy(Example)
 			end)
 		end
@@ -903,6 +893,7 @@ function Options:AddDropdown(Settings: { Title: string, Description: string, Opt
 		if not Example then return end
 		local ScrollingFrame = Example.ScrollingFrame
 
+		-- SKYBOY PATCH: modal blocker + nút X (không Refresh)
 		Tween(BG, .25, { BackgroundTransparency = 0.6 })
 		SetProperty(Example, { Parent = Window })
 
@@ -910,6 +901,7 @@ function Options:AddDropdown(Settings: { Title: string, Description: string, Opt
 
 		Animations:Open(Example, 0, true)
 		
+        -- xóa các nút cũ và thêm nút X
         for _, b in ipairs(Example.Top.Buttons:GetChildren()) do
             if b:IsA("TextButton") then b:Destroy() end
         end
@@ -933,6 +925,7 @@ function Options:AddDropdown(Settings: { Title: string, Description: string, Opt
 
 		refreshDropdownContent(Example, ScrollingFrame)
 
+        -- ensure khi chọn item cũng hủy blocker
         Example.Destroying:Connect(function()
             if modalBlocker then modalBlocker:Destroy() end
         end)
@@ -1019,8 +1012,9 @@ function Options:AddMultiDropdown(Settings: { Title: string, Description: string
 			
 			local isSelected = table.find(state.selected, key)
 
-            addRowStroke(Button)
+            addRowStroke(Button) -- SKYBOY PATCH: viền
 
+            -- SKYBOY PATCH: màu chữ & nền chọn/trống
             Button.BackgroundColor3 = isSelected and Color3.fromRGB(230,230,230) or Color3.fromRGB(255,255,255)
             BtnTitle.TextColor3 = Color3.fromRGB(0,0,0)
 
@@ -1061,6 +1055,7 @@ function Options:AddMultiDropdown(Settings: { Title: string, Description: string
 		if not Example then return end
 		local ScrollingFrame = Example.ScrollingFrame
 		
+		-- SKYBOY PATCH: modal + nút X thay Refresh
 		Tween(BG, .25, { BackgroundTransparency = 0.6 })
 		SetProperty(Example, { Parent = Window })
         local modalBlocker = createInputBlocker(Window, (Example.ZIndex or 60) - 1)
@@ -1105,7 +1100,7 @@ function Options:AddMultiDropdown(Settings: { Title: string, Description: string
 			if state.updateFunction then
 				newOptions = state.updateFunction()
 			else
-				warn("MultiDropdown:Update requires a table of options hoặc một UpdateFunction.")
+				warn("MultiDropdown:Update requires a table of options or an UpdateFunction.")
 				return
 			end
 		end
@@ -1251,7 +1246,7 @@ end
 			
 			["Title"] = function(Label)
 				if Label:IsA("TextLabel") then
-                    Label.TextColor3 = Color3.fromRGB(0,0,0) -- SKYBOY PATCH: mọi Title là chữ đen
+                    Label.TextColor3 = Color3.fromRGB(0,0,0) -- SKYBOY PATCH: mọi Title là chữ đen (đảm bảo topbar nhìn rõ)
 				end
 			end,
 
@@ -1370,7 +1365,7 @@ end
 		Theme = Info or Theme
 
 		Window.BackgroundColor3 = Theme.Primary
-        if Holder then Holder.BackgroundColor3 = Theme.Secondary end
+		Holder.BackgroundColor3 = Theme.Secondary
 		Window.UIStroke.Color = Theme.Shadow
 
 		for Index, Descendant in next, Screen:GetDescendants() do
@@ -1386,7 +1381,7 @@ end
 
 	--// Changing Settings
 
-	function Options:SetSetting(Setting, Value) --// Available settings - Size, Transparency, Blur, Theme, Keybind, SidebarWidth
+	function Options:SetSetting(Setting, Value) --// Available settings - Size, Transparency, Blur, Theme
 		if Setting == "Size" then
 			
 			Window.Size = Value
@@ -1431,18 +1426,6 @@ end
 		elseif Setting == "Keybind" then
 			
 			Setup.Keybind = Value
-
-        elseif Setting == "SidebarWidth" and typeof(Value) == "number" then
-            -- SKYBOY PATCH: thay đổi sidebar width runtime
-            Setup.SidebarWidth = Value
-            if Sidebar then Sidebar.Size = UDim2.new(0, Value, 1, 0) end
-            if Holder  then
-                Holder.Position = UDim2.new(0, Value, 0, 0)
-                Holder.Size     = UDim2.new(1, -Value, 1, 0)
-            end
-            if Options.TabsHolder then
-                Options.TabsHolder.Size = UDim2.new(0, Value, 1, 0)
-            end
 			
 		else
 			warn("Tried to change a setting that doesn't exist or isn't available to change.")
