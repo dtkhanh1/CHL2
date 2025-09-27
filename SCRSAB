@@ -1,54 +1,45 @@
---[[
-    User Interface Library (v9 – Light rework)
-    Based on Late's version, customized for:
-    - No hover darkening
-    - Light theme (white background, black text)
-    - Dropdown popup with [X] close button (no Refresh)
-    - Toggles: OFF = white track + black knob; ON = black track + white knob
-    - Topbar/title uses black text for visibility on white BG
+--[[ 
+    User Interface Library v9 (Patched for SkyBoy)
+    Made by Late
+    Patches by Assistant (SKYBOY)
 ]]
---// Connections / Aliases
+
+--// Connections
 local GetService = game.GetService
 local Connect = game.Loaded.Connect
 local Wait = game.Loaded.Wait
 local Clone = game.Clone 
 local Destroy = game.Destroy 
-
 if (not game:IsLoaded()) then
     local Loaded = game.Loaded
     Loaded.Wait(Loaded);
 end
 
---// Setup / Theme
+--// Important 
 local Setup = {
-    Keybind = Enum.KeyCode.LeftControl, -- Keybind mặc định đóng/mở GUI
-    Transparency = 0.0,
-    ThemeMode = "Light",
+    Keybind = Enum.KeyCode.LeftControl,
+    Transparency = 0.2,
+    ThemeMode = "Dark",
     Size = nil,
 }
-
--- Light theme mặc định
-local Theme = {
+local Theme = { -- Default (Dark Theme) – có thể bị override bởi GUI trắng của bạn
     -- Frames:
-    Primary       = Color3.fromRGB(245, 245, 245), -- nền ngoài
-    Secondary     = Color3.fromRGB(250, 250, 250), -- nền holder
-    Component     = Color3.fromRGB(255, 255, 255), -- control BG
-    Interactables = Color3.fromRGB(240, 240, 240), -- khu vực tương tác
-
+    Primary = Color3.fromRGB(30, 30, 30),
+    Secondary = Color3.fromRGB(35, 35, 35),
+    Component = Color3.fromRGB(40, 40, 40),
+    Interactables = Color3.fromRGB(45, 45, 45),
     -- Text:
-    Tab         = Color3.fromRGB(30, 30, 30),
-    Title       = Color3.fromRGB(20, 20, 20),      -- topbar/title: đen
-    Description = Color3.fromRGB(60, 60, 60),
-
+    Tab = Color3.fromRGB(200, 200, 200),
+    Title = Color3.fromRGB(240,240,240),
+    Description = Color3.fromRGB(200,200,200),
     -- Outlines:
-    Shadow  = Color3.fromRGB(200, 200, 200),
-    Outline = Color3.fromRGB(210, 210, 210),
-
-    -- Image/icon:
-    Icon = Color3.fromRGB(30, 30, 30),
+    Shadow = Color3.fromRGB(0, 0, 0),
+    Outline = Color3.fromRGB(40, 40, 40),
+    -- Image:
+    Icon = Color3.fromRGB(220, 220, 220),
 }
 
---// Services & Helpers
+--// Services & Functions
 local Type, Blur = nil
 local LocalPlayer = GetService(game, "Players").LocalPlayer;
 local Services = {
@@ -69,9 +60,7 @@ local Tween = function(Object : Instance, Speed : number, Properties : {},  Info
     else
         Style, Direction = Enum.EasingStyle.Sine, Enum.EasingDirection.Out
     end
-    local t = Services.Tween:Create(Object, TweenInfo.new(Speed, Style, Direction), Properties)
-    t:Play()
-    return t
+    return Services.Tween:Create(Object, TweenInfo.new(Speed, Style, Direction), Properties):Play()
 end
 
 local SetProperty = function(Object: Instance, Properties: {})
@@ -91,20 +80,12 @@ local Multiply = function(Value, Amount)
     return UDim2.new(unpack(New))
 end
 
-local Color = function(Color3In, Factor, Mode)
+local Color = function(Color, Factor, Mode)
     Mode = Mode or Setup.ThemeMode
-    -- Với Light, đừng tăng quá nhiều; giữ nhạt
     if Mode == "Light" then
-        -- Giảm nhẹ độ sáng (tránh đen)
-        local r = math.clamp((Color3In.R * 255) - Factor, 0, 255)
-        local g = math.clamp((Color3In.G * 255) - Factor, 0, 255)
-        local b = math.clamp((Color3In.B * 255) - Factor, 0, 255)
-        return Color3.fromRGB(r, g, b)
+        return Color3.fromRGB((Color.R * 255) - Factor, (Color.G * 255) - Factor, (Color.B * 255) - Factor)
     else
-        local r = math.clamp((Color3In.R * 255) + Factor, 0, 255)
-        local g = math.clamp((Color3In.G * 255) + Factor, 0, 255)
-        local b = math.clamp((Color3In.B * 255) + Factor, 0, 255)
-        return Color3.fromRGB(r, g, b)
+        return Color3.fromRGB((Color.R * 255) + Factor, (Color.G * 255) + Factor, (Color.B * 255) + Factor)
     end
 end
 
@@ -114,12 +95,10 @@ local Drag = function(Canvas)
         local DragInput;
         local Start;
         local StartPosition;
-
         local function Update(input)
             local delta = input.Position - Start
             Canvas.Position = UDim2.new(StartPosition.X.Scale, StartPosition.X.Offset + delta.X, StartPosition.Y.Scale, StartPosition.Y.Offset + delta.Y)
         end
-
         Connect(Canvas.InputBegan, function(Input)
             if (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) and not Type then
                 Dragging = true
@@ -132,13 +111,11 @@ local Drag = function(Canvas)
                 end)
             end
         end)
-
         Connect(Canvas.InputChanged, function(Input)
             if (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch) and not Type then
                 DragInput = Input
             end
         end)
-
         Connect(Services.Input.InputChanged, function(Input)
             if Input == DragInput and Dragging and not Type then
                 Update(Input)
@@ -148,17 +125,17 @@ local Drag = function(Canvas)
 end
 
 Resizing = { 
-    TopLeft = { X = Vector2.new(-1, 0),   Y = Vector2.new(0, -1)};
-    TopRight = { X = Vector2.new(1, 0),    Y = Vector2.new(0, -1)};
-    BottomLeft = { X = Vector2.new(-1, 0),   Y = Vector2.new(0, 1)};
-    BottomRight = { X = Vector2.new(1, 0),    Y = Vector2.new(0, 1)};
+    TopLeft = { X = Vector2.new(-1, 0), Y = Vector2.new(0, -1)};
+    TopRight = { X = Vector2.new(1, 0),  Y = Vector2.new(0, -1)};
+    BottomLeft = { X = Vector2.new(-1, 0), Y = Vector2.new(0, 1)};
+    BottomRight = { X = Vector2.new(1, 0),  Y = Vector2.new(0, 1)};
 }
 Resizeable = function(Tab, Minimum, Maximum)
     task.spawn(function()
         local MousePos, Size, UIPos = nil, nil, nil
         if Tab and Tab:FindFirstChild("Resize") then
             local Positions = Tab:FindFirstChild("Resize")
-            for Index, Types in next, Positions:GetChildren() do
+            for _, Types in next, Positions:GetChildren() do
                 Connect(Types.InputBegan, function(Input)
                     if Input.UserInputType == Enum.UserInputType.MouseButton1 then
                         Type = Types
@@ -174,8 +151,7 @@ Resizeable = function(Tab, Minimum, Maximum)
                 end)
             end
         end
-
-        local function Resize(Delta)
+        local Resize = function(Delta)
             if Type and MousePos and Size and UIPos and Tab:FindFirstChild("Resize")[Type.Name] == Type then
                 local Mode = Resizing[Type.Name]
                 local NewSize = Vector2.new(Size.X + Delta.X * Mode.X.X, Size.Y + Delta.Y * Mode.Y.Y)
@@ -184,16 +160,10 @@ Resizeable = function(Tab, Minimum, Maximum)
                 local NewAnchorOffset = Vector2.new(Tab.AnchorPoint.X * NewSize.X, Tab.AnchorPoint.Y * NewSize.Y)
                 local DeltaAnchorOffset = NewAnchorOffset - AnchorOffset
                 Tab.Size = UDim2.new(0, NewSize.X, 0, NewSize.Y)
-                local NewPosition = UDim2.new(
-                    UIPos.X.Scale, 
-                    UIPos.X.Offset + DeltaAnchorOffset.X * Mode.X.X,
-                    UIPos.Y.Scale,
-                    UIPos.Y.Offset + DeltaAnchorOffset.Y * Mode.Y.Y
-                )
+                local NewPosition = UDim2.new(UIPos.X.Scale, UIPos.X.Offset + DeltaAnchorOffset.X * Mode.X.X, UIPos.Y.Scale, UIPos.Y.Offset + DeltaAnchorOffset.Y * Mode.Y.Y)
                 Tab.Position = NewPosition
             end
         end
-
         Connect(Player.Mouse.Move, function()
             if Type then
                 Resize(Vector2.new(Player.Mouse.X, Player.Mouse.Y) - MousePos)
@@ -224,7 +194,7 @@ local Components = (Screen:FindFirstChild("Components"));
 local Library = {};
 local StoredInfo = {
     ["Sections"] = {};
-    ["Tabs"] = {};
+    ["Tabs"] = {}
 };
 
 --// Animations [Window]
@@ -232,17 +202,10 @@ function Animations:Open(Window: CanvasGroup, Transparency: number, UseCurrentSi
     local Original = (UseCurrentSize and Window.Size) or Setup.Size
     local Multiplied = Multiply(Original, 1.1)
     local Shadow = Window:FindFirstChildOfClass("UIStroke")
-    if Shadow then SetProperty(Shadow, { Transparency = 1 }) end
-    SetProperty(Window, {
-        Size = Multiplied,
-        GroupTransparency = 1,
-        Visible = true,
-    })
-    if Shadow then Tween(Shadow, .25, { Transparency = 0.5 }) end
-    Tween(Window, .25, {
-        Size = Original,
-        GroupTransparency = Transparency or 0,
-    })
+    SetProperty(Shadow, { Transparency = 1 })
+    SetProperty(Window, { Size = Multiplied, GroupTransparency = 1, Visible = true })
+    Tween(Shadow, .25, { Transparency = 0.5 })
+    Tween(Window, .25, { Size = Original, GroupTransparency = Transparency or 0 })
 end
 
 function Animations:Close(Window: CanvasGroup)
@@ -250,22 +213,19 @@ function Animations:Close(Window: CanvasGroup)
     local Multiplied = Multiply(Original, 1.1)
     local Shadow = Window:FindFirstChildOfClass("UIStroke")
     SetProperty(Window, { Size = Original })
-    if Shadow then Tween(Shadow, .25, { Transparency = 1 }) end
-    Tween(Window, .25, {
-        Size = Multiplied,
-        GroupTransparency = 1,
-    })
+    Tween(Shadow, .25, { Transparency = 1 })
+    Tween(Window, .25, { Size = Multiplied, GroupTransparency = 1 })
     task.wait(.25)
     Window.Size = Original
     Window.Visible = false
 end
 
--- *** IMPORTANT ***: Disable hover darkening completely
+-- SKYBOY PATCH: tắt hover animation hoàn toàn
 function Animations:Component(Component: any, Custom: boolean)
-    -- No-op: không tween màu khi hover nữa
+    -- no-op
 end
 
---// Floating Icon (unchanged logic, just UI colors adapt theme)
+--// Floating Icon
 local FloatingIcon = {}
 function FloatingIcon:Create()
     local icon = Instance.new("ImageButton")
@@ -315,6 +275,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
     local Maximized = false;
     local BlurEnabled = false
     
+    -- Floating icon
     local floatingIcon = FloatingIcon:Create()
 
     for _, Example in next, Window:GetDescendants() do
@@ -323,7 +284,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
         end
     end
 
-    -- Window controls (minimize / exit)
+    -- Window controls ở góc phải
     local windowControls = Instance.new("Frame")
     windowControls.Name = "WindowControls"
     windowControls.Size = UDim2.new(0, 60, 0, 30)
@@ -331,7 +292,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
     windowControls.BackgroundTransparency = 1
     windowControls.ZIndex = 10
     windowControls.Parent = Window
-    
+
     local layout = Instance.new("UIListLayout")
     layout.FillDirection = Enum.FillDirection.Horizontal
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -339,7 +300,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Padding = UDim.new(0, 5)
     layout.Parent = windowControls
-    
+
     local minimizeBtn = Instance.new("ImageButton")
     minimizeBtn.Name = "MinimizeButton"
     minimizeBtn.Image = "rbxassetid://7734000129"
@@ -348,7 +309,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
     minimizeBtn.LayoutOrder = 1
     minimizeBtn.ZIndex = 11
     minimizeBtn.Parent = windowControls
-    
+
     local exitBtn = Instance.new("ImageButton")
     exitBtn.Name = "ExitButton"
     exitBtn.Image = "rbxassetid://7755372427"
@@ -358,35 +319,32 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
     exitBtn.ZIndex = 11
     exitBtn.Parent = windowControls
 
-    minimizeBtn.MouseButton1Click:Connect(function()
+    -- SKYBOY PATCH: X ở topbar chỉ ẨN, không destroy
+    local function HideWindow()
         Window.Visible = false
         Opened = false
-        if BlurEnabled and Blurs[Settings.Title] then
+        if BlurEnabled then
             Blurs[Settings.Title].root.Parent = nil
         end
         floatingIcon.Visible = true
         floatingIcon.Position = UDim2.new(0, 100, 0, 100)
-    end)
-    
-    exitBtn.MouseButton1Click:Connect(function()
-        Window:Destroy()
-        floatingIcon:Destroy()
-    end)
+    end
 
+    minimizeBtn.MouseButton1Click:Connect(HideWindow)
+    exitBtn.MouseButton1Click:Connect(HideWindow)
+
+    -- Floating icon: Restore/Exit → chỉ ẩn như trên
     floatingIcon.RestoreButton.MouseButton1Click:Connect(function()
         Window.Visible = true
         Opened = true
-        if BlurEnabled and Blurs[Settings.Title] then
+        if BlurEnabled then
             Blurs[Settings.Title].root.Parent = workspace.CurrentCamera
         end
         floatingIcon.Visible = false
     end)
-    floatingIcon.ExitButton.MouseButton1Click:Connect(function()
-        Window:Destroy()
-        floatingIcon:Destroy()
-    end)
+    floatingIcon.ExitButton.MouseButton1Click:Connect(HideWindow)
 
-    -- Sidebar Top re-layout (title + buttons), enforce black title text
+    -- Topbar (đổi chữ sang đen)
     local topBar = Sidebar:FindFirstChild("Top")
     if topBar then
         for _, child in ipairs(topBar:GetChildren()) do
@@ -422,7 +380,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
         titleLabel.Text = Settings.Title or "UI Library"
         titleLabel.Font = Enum.Font.GothamSemibold
         titleLabel.TextSize = 14
-        titleLabel.TextColor3 = Theme.Title -- đen
+        -- SKYBOY PATCH: chữ đen để tương phản GUI trắng
+        titleLabel.TextColor3 = Color3.fromRGB(0,0,0)
         titleLabel.Size = UDim2.new(1, -10, 1, 0)
         titleLabel.Position = UDim2.new(0, 10, 0, 0)
         titleLabel.BackgroundTransparency = 1
@@ -459,8 +418,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
             local availableWidth = titleContainer.AbsoluteSize.X - 10
             local textWidth = titleLabel.TextBounds.X
             if textWidth > availableWidth then
-                local scaleFactor = availableWidth / math.max(textWidth, 1)
-                titleLabel.TextSize = math.max(10, math.floor(14 * scaleFactor))
+                local scaleFactor = availableWidth / textWidth
+                titleLabel.TextSize = math.max(8, 14 * scaleFactor)
             else
                 titleLabel.TextSize = 14
             end
@@ -469,24 +428,23 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
         adjustTitleSize()
     end
 
-    -- UI Blur & General
-    Drag(Window)
-    Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9))
+    -- UI Blur & More
+    Drag(Window);
+    Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9));
     Setup.Transparency = Settings.Transparency or 0
     Setup.Size = Settings.Size
-    Setup.ThemeMode = Settings.Theme or "Light"
-
+    Setup.ThemeMode = Settings.Theme or "Dark"
     if Settings.Blurring then
-        Blurs[Settings.Title] = Blur.new(Window, 0.5)
+        Blurs[Settings.Title] = Blur.new(Window, 5)
         BlurEnabled = true
     end
     if Settings.MinimizeKeybind then
         Setup.Keybind = Settings.MinimizeKeybind
     end
 
-    local function Close()
+    local Close = function()
         if Opened then
-            if BlurEnabled and Blurs[Settings.Title] then
+            if BlurEnabled then
                 Blurs[Settings.Title].root.Parent = nil
             end
             Opened = false
@@ -496,875 +454,696 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
         else
             Animations:Open(Window, Setup.Transparency)
             Opened = true
-            if BlurEnabled and Blurs[Settings.Title] then
+            if BlurEnabled then
                 Blurs[Settings.Title].root.Parent = workspace.CurrentCamera
             end
             floatingIcon.Visible = false
         end
     end
-
+    
+    local function handleMaximizeButton()
+        if Maximized then
+            Maximized = false
+            Tween(Window, .15, { Size = Setup.Size });
+        else
+            Maximized = true
+            Tween(Window, .15, { Size = UDim2.fromScale(1, 1), Position = UDim2.fromScale(0.5, 0.5 )});
+        end
+    end
+    
     local maximizeButton = Sidebar:FindFirstChild("Top", true) and Sidebar.Top:FindFirstChild("Maximize")
     if maximizeButton then
-        maximizeButton.MouseButton1Click:Connect(function()
-            if Maximized then
-                Maximized = false
-                Tween(Window, .15, { Size = Setup.Size });
-            else
-                Maximized = true
-                Tween(Window, .15, { Size = UDim2.fromScale(1, 1), Position = UDim2.fromScale(0.5, 0.5 )});
-            end
-        end)
+        maximizeButton.MouseButton1Click:Connect(handleMaximizeButton)
     end
-
+    
     Services.Input.InputBegan:Connect(function(Input, Focused) 
         if (Input == Setup.Keybind or Input.KeyCode == Setup.Keybind) and not Focused then
             Close()
         end
     end)
 
-    --// ===== Tabs API =====
-function Options:SetTab(Name: string)
-    -- Sidebar buttons
-    if self.TabsHolder then
+    --// Tab Functions
+    function Options:SetTab(Name: string)
         for _, Button in next, self.TabsHolder:GetChildren() do
             if Button:IsA("TextButton") then
                 local Opened, SameName = Button.Value, (Button.Name == Name)
                 local Padding = Button:FindFirstChildOfClass("UIPadding")
                 if SameName and not Opened.Value then
                     Tween(Padding, .25, { PaddingLeft = UDim.new(0, 25) })
-                    Tween(Button, .25, {
-                        BackgroundTransparency = 0,
-                        Size = UDim2.new(1, -15, 0, 30),
-                        BackgroundColor3 = Theme.Component,
-                        TextColor3 = Theme.Tab,
-                    })
+                    Tween(Button, .25, { BackgroundTransparency = 0.9, Size = UDim2.new(1, -15, 0, 30) })
                     SetProperty(Opened, { Value = true })
                 elseif not SameName and Opened.Value then
                     Tween(Padding, .25, { PaddingLeft = UDim.new(0, 20) })
-                    Tween(Button, .25, {
-                        BackgroundTransparency = 1,
-                        Size = UDim2.new(1, -44, 0, 30),
-                        BackgroundColor3 = Theme.Component,
-                        TextColor3 = Theme.Tab,
-                    })
+                    Tween(Button, .25, { BackgroundTransparency = 1, Size = UDim2.new(1, -44, 0, 30) })
                     SetProperty(Opened, { Value = false })
                 end
             end
         end
-    end
-
-    -- Content switching
-    for _, Main in next, Holder:GetChildren() do
-        if Main:IsA("CanvasGroup") then
-            local Opened, SameName = Main.Value, (Main.Name == Name)
-            local Scroll = Main:FindFirstChild("ScrollingFrame")
-            if SameName and not Opened.Value then
-                Opened.Value = true
-                Main.Visible = true
-                Tween(Main, .3, { GroupTransparency = 0 })
-                Tween(Scroll["UIPadding"], .3, { PaddingTop = UDim.new(0, 5) })
-            elseif not SameName and Opened.Value then
-                Opened.Value = false
-                Tween(Main, .15, { GroupTransparency = 1 })
-                Tween(Scroll["UIPadding"], .15, { PaddingTop = UDim.new(0, 15) })
-                task.delay(.2, function()
-                    Main.Visible = false
-                end)
-            end
-        end
-    end
-end
-
-function Options:EnsureTabsHolder(Example)
-    if not self.TabsHolder then
-        local TabsHolder = Instance.new("ScrollingFrame")
-        TabsHolder.Name = "TabsHolder"
-        TabsHolder.Size = UDim2.new(0, 150, 1, 0)
-        TabsHolder.Position = UDim2.new(0, 0, 0, 0)
-        TabsHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
-        TabsHolder.ScrollBarThickness = 6
-        TabsHolder.BackgroundTransparency = 1
-        TabsHolder.Parent = Example.Parent  
-
-        local UIList = Instance.new("UIListLayout")
-        UIList.SortOrder = Enum.SortOrder.LayoutOrder
-        UIList.Parent = TabsHolder
-
-        UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            TabsHolder.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
-        end)
-
-        self.TabsHolder = TabsHolder
-    end
-    return self.TabsHolder
-end
-
-function Options:AddTabSection(Settings: { Name: string, Order: number })
-    local Example = Examples["SectionExample"];
-    local Section = Clone(Example);
-    local TabsHolder = self:EnsureTabsHolder(Example)
-    SetProperty(Section, {
-        Parent = TabsHolder,
-        Text = Settings.Name,
-        Name = Settings.Name,
-        LayoutOrder = Settings.Order,
-        Visible = true
-    })
-    StoredInfo["Sections"][Settings.Name] = {
-        Order = Settings.Order,
-        Object = Section
-    }
-end
-
-function Options:AddTab(Settings: { Title: string, Icon: string, Section: string? })
-    if StoredInfo["Tabs"][Settings.Title] then
-        error("[UI LIB]: A tab with the same name has already been created")
-    end
-
-    local Example, MainExample = Examples["TabButtonExample"], Examples["MainExample"]
-    local Main = Clone(MainExample)
-    local TabBtn = Clone(Example)
-
-    local TabsHolder = self:EnsureTabsHolder(Example)
-
-    if not Settings.Icon or Settings.Icon == "" then
-        Destroy(TabBtn["ICO"])
-    else
-        SetProperty(TabBtn["ICO"], { Image = Settings.Icon })
-        TabBtn["ICO"].ImageColor3 = Theme.Icon
-    end
-
-    StoredInfo["Tabs"][Settings.Title] = { TabBtn }
-    SetProperty(TabBtn["TextLabel"], { Text = Settings.Title, TextColor3 = Theme.Tab })
-
-    SetProperty(Main, { Parent = MainExample.Parent, Name = Settings.Title })
-
-    local SectionInfo = Settings.Section and StoredInfo["Sections"][Settings.Section]
-    local LayoutOrder = SectionInfo and SectionInfo.Order or (#StoredInfo["Sections"] + 1)
-
-    SetProperty(TabBtn, {
-        Parent = TabsHolder,
-        LayoutOrder = LayoutOrder,
-        Name = Settings.Title,
-        Visible = true,
-        BackgroundColor3 = Theme.Component
-    })
-
-    TabBtn.MouseButton1Click:Connect(function()
-        Options:SetTab(TabBtn.Name)
-    end)
-
-    return Main.ScrollingFrame
-end
-
---// Notifications
-function Options:Notify(Settings: { Title: string, Description: string, Duration: number })
-    local Notification = Clone(Components["Notification"])
-    local Title, Description = Options:GetLabels(Notification)
-    local Timer = Notification["Timer"]
-
-    SetProperty(Title, { Text = Settings.Title, TextColor3 = Theme.Title })
-    SetProperty(Description, { Text = Settings.Description, TextColor3 = Theme.Description })
-    SetProperty(Notification, {
-        Parent = Screen["Frame"],
-        BackgroundColor3 = Theme.Primary
-    })
-    if Notification:FindFirstChildOfClass("UIStroke") then
-        Notification.UIStroke.Color = Theme.Outline
-    end
-
-    task.spawn(function()
-        local Duration = Settings.Duration or 2
-        Animations:Open(Notification, Setup.Transparency, true)
-        Tween(Timer, Duration, { Size = UDim2.new(0, 0, 0, 4) })
-        task.wait(Duration)
-        Animations:Close(Notification)
-        task.wait(1)
-        Notification:Destroy()
-    end)
-end
-
---// Components helpers
-function Options:GetLabels(Component)
-    local Labels = Component:FindFirstChild("Labels")
-    return Labels.Title, Labels.Description
-end
-
-function Options:AddSection(Settings: { Name: string, Tab: Instance })
-    local Section = Clone(Components["Section"]);
-    SetProperty(Section, {
-        Text = Settings.Name,
-        Parent = Settings.Tab,
-        Visible = true,
-        TextColor3 = Theme.Title
-    })
-end
-
-function Options:AddButton(Settings: { Title: string, Description: string, Tab: Instance, Callback: any })
-    local Button = Clone(Components["Button"])
-    local Title, Description = Options:GetLabels(Button)
-
-    local RightImage = Instance.new("ImageLabel")
-    RightImage.Name = "RightImage"
-    RightImage.Size = UDim2.new(0, 22, 0, 22)
-    RightImage.Position = UDim2.new(1, -41, 0.5, -10)
-    RightImage.Image = "rbxassetid://7734010488"
-    RightImage.BackgroundTransparency = 1
-    RightImage.ImageColor3 = Theme.Icon
-    RightImage.Parent = Button
-
-    Connect(Button.MouseButton1Click, Settings.Callback)
-
-    SetProperty(Title, { Text = Settings.Title, TextColor3 = Theme.Title })
-    SetProperty(Description, { Text = Settings.Description, TextColor3 = Theme.Description })
-    SetProperty(Button, {
-        Name = Settings.Title,
-        Parent = Settings.Tab,
-        Visible = true,
-        Size = UDim2.new(1, -20, 0, 0),
-        BackgroundColor3 = Theme.Component
-    })
-end
-
-function Options:AddInput(Settings: { Title: string, Description: string, Tab: Instance, Callback: any })
-    local Input = Clone(Components["Input"])
-    local Title, Description = Options:GetLabels(Input)
-    local TextBox = Input["Main"]["Input"]
-
-    Connect(Input.MouseButton1Click, function()
-        TextBox:CaptureFocus()
-    end)
-    Connect(TextBox.FocusLost, function()
-        Settings.Callback(TextBox.Text)
-    end)
-
-    SetProperty(Title, { Text = Settings.Title, TextColor3 = Theme.Title })
-    SetProperty(Description, { Text = Settings.Description, TextColor3 = Theme.Description })
-    SetProperty(Input, {
-        Name = Settings.Title,
-        Parent = Settings.Tab,
-        Visible = true,
-        BackgroundColor3 = Theme.Component
-    })
-    TextBox.TextColor3 = Theme.Title
-    local main = Input:FindFirstChild("Main")
-    if main then main.BackgroundColor3 = Theme.Component end
-end
-
-function Options:AddToggle(Settings: { Title: string, Description: string, Default: boolean, Tab: Instance, Callback: any })
-    local Toggle = Clone(Components["Toggle"])
-    local Title, Description = Options:GetLabels(Toggle)
-
-    local On = Toggle["Value"]
-    local Main = Toggle["Main"]
-    local Circle = Main["Circle"]
-
-    -- OFF: track trắng, knob đen
-    -- ON : track đen,  knob trắng
-    local function Set(Value: boolean)
-        if Value then
-            Tween(Main,   .2, { BackgroundColor3 = Color3.fromRGB(20, 20, 20) })   -- track đen
-            Tween(Circle, .2, { BackgroundColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(1, -16, 0.5, 0) }) -- nút trắng
-        else
-            Tween(Main,   .2, { BackgroundColor3 = Color3.fromRGB(255, 255, 255) }) -- track trắng
-            Tween(Circle, .2, { BackgroundColor3 = Color3.fromRGB(20, 20, 20), Position = UDim2.new(0, 3, 0.5, 0) }) -- nút đen
-        end
-        On.Value = Value
-    end
-
-    Connect(Toggle.MouseButton1Click, function()
-        local Value = not On.Value
-        Set(Value)
-        Settings.Callback(Value)
-    end)
-
-    SetProperty(Title, { Text = Settings.Title, TextColor3 = Theme.Title })
-    SetProperty(Description, { Text = Settings.Description, TextColor3 = Theme.Description })
-    SetProperty(Toggle, {
-        Name = Settings.Title,
-        Parent = Settings.Tab,
-        Visible = true,
-        BackgroundColor3 = Theme.Component
-    })
-    Set(Settings.Default)
-end
-
-function Options:AddKeybind(Settings: { Title: string, Description: string, Tab: Instance, Callback: any })
-    local Dropdown = Clone(Components["Keybind"])
-    local Title, Description = Options:GetLabels(Dropdown)
-    local Bind = Dropdown["Main"].Options
-    
-    local Mouse = { Enum.UserInputType.MouseButton1, Enum.UserInputType.MouseButton2, Enum.UserInputType.MouseButton3 }
-    local Types = { ["Mouse"] = "Enum.UserInputType.MouseButton", ["Key"] = "Enum.KeyCode." }
-    
-    Connect(Dropdown.MouseButton1Click, function()
-        SetProperty(Bind, { Text = "..." })
-        local Finished
-        Connect(game.UserInputService.InputBegan, function(Key, Focused)
-            if not Finished and not Focused then
-                Finished = true
-                if table.find(Mouse, Key.UserInputType) then
-                    Settings.Callback(Key)
-                    SetProperty(Bind, { Text = tostring(Key.UserInputType):gsub(Types.Mouse, "MB") })
-                elseif Key.UserInputType == Enum.UserInputType.Keyboard then
-                    Settings.Callback(Key)
-                    SetProperty(Bind, { Text = tostring(Key.KeyCode):gsub(Types.Key, "") })
+        for _, Main in next, Holder:GetChildren() do
+            if Main:IsA("CanvasGroup") then
+                local Opened, SameName = Main.Value, (Main.Name == Name)
+                local Scroll = Main:FindFirstChild("ScrollingFrame")
+                if SameName and not Opened.Value then
+                    Opened.Value = true
+                    Main.Visible = true
+                    Tween(Main, .3, { GroupTransparency = 0 })
+                    Tween(Scroll["UIPadding"], .3, { PaddingTop = UDim.new(0, 5) })
+                elseif not SameName and Opened.Value then
+                    Opened.Value = false
+                    Tween(Main, .15, { GroupTransparency = 1 })
+                    Tween(Scroll["UIPadding"], .15, { PaddingTop = UDim.new(0, 15) })
+                    task.delay(.2, function() Main.Visible = false end)
                 end
             end
-        end)
-    end)
-
-    SetProperty(Title, { Text = Settings.Title, TextColor3 = Theme.Title })
-    SetProperty(Description, { Text = Settings.Description, TextColor3 = Theme.Description })
-    SetProperty(Dropdown, {
-        Name = Settings.Title,
-        Parent = Settings.Tab,
-        Visible = true,
-        BackgroundColor3 = Theme.Component
-    })
-end
-
--- ===== Dropdown (single) with X close (no Refresh) =====
-function Options:AddDropdown(Settings: { Title: string, Description: string, Options: { [string]: any }, Tab: Instance, Callback: any, UpdateFunction: any? })
-    local Dropdown = Clone(Components["Dropdown"])
-    local Title, Description = Options:GetLabels(Dropdown)
-    local Text = Dropdown["Main"].Options
-
-    local state = {
-        options = Settings.Options or {},
-        selection = nil,
-        updateFunction = Settings.UpdateFunction
-    }
-
-    local function renderList(Example, ScrollingFrame)
-        for _, child in ipairs(ScrollingFrame:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextButton") then
-                Destroy(child)
-            end
         end
-        for key, value in pairs(state.options) do
-            local Button = Clone(Examples["DropdownButtonExample"])
-            if not Button then continue end
+    end
+
+    function Options:EnsureTabsHolder(Example)
+        if not self.TabsHolder then
+            local TabsHolder = Instance.new("ScrollingFrame")
+            TabsHolder.Name = "TabsHolder"
+            TabsHolder.Size = UDim2.new(0, 150, 1, 0)
+            TabsHolder.Position = UDim2.new(0, 0, 0, 0)
+            TabsHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
+            TabsHolder.ScrollBarThickness = 6
+            TabsHolder.BackgroundTransparency = 1
+            TabsHolder.Parent = Example.Parent  
+            local UIList = Instance.new("UIListLayout")
+            UIList.SortOrder = Enum.SortOrder.LayoutOrder
+            UIList.Parent = TabsHolder
+            UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                TabsHolder.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
+            end)
+            self.TabsHolder = TabsHolder
+        end
+        return self.TabsHolder
+    end
+
+    function Options:AddTabSection(Settings: { Name: string, Order: number })
+        local Example = Examples["SectionExample"];  
+        local Section = Clone(Example);  
+        local TabsHolder = self:EnsureTabsHolder(Example)
+        SetProperty(Section, { Parent = TabsHolder, Text = Settings.Name, Name = Settings.Name, LayoutOrder = Settings.Order, Visible = true })
+        StoredInfo["Sections"][Settings.Name] = { Order = Settings.Order, Object = Section }
+    end
+
+    function Options:AddTab(Settings: { Title: string, Icon: string, Section: string? })
+        if StoredInfo["Tabs"][Settings.Title] then
+            error("[UI LIB]: A tab with the same name has already been created")
+        end
+        local Example, MainExample = Examples["TabButtonExample"], Examples["MainExample"];  
+        local Main = Clone(MainExample);  
+        local TabButton = Clone(Example);  
+        local TabsHolder = self:EnsureTabsHolder(Example)
+
+        if not Settings.Icon then Destroy(TabButton["ICO"]) else SetProperty(TabButton["ICO"], { Image = Settings.Icon }) end
+        StoredInfo["Tabs"][Settings.Title] = { TabButton }
+        SetProperty(TabButton["TextLabel"], { Text = Settings.Title })
+
+        SetProperty(Main, { Parent = MainExample.Parent, Name = Settings.Title })
+        local SectionInfo = Settings.Section and StoredInfo["Sections"][Settings.Section]
+        local LayoutOrder = SectionInfo and SectionInfo.Order or (#StoredInfo["Sections"] + 1)
+
+        SetProperty(TabButton, { Parent = TabsHolder, LayoutOrder = LayoutOrder, Name = Settings.Title, Visible = true })
+        TabButton.MouseButton1Click:Connect(function() Options:SetTab(TabButton.Name) end)
+        return Main.ScrollingFrame
+    end
+
+    -- Notifications
+    function Options:Notify(Settings: { Title: string, Description: string, Duration: number })
+        local Notification = Clone(Components["Notification"]);
+        local Title, Description = Options:GetLabels(Notification);
+        local Timer = Notification["Timer"];
+        SetProperty(Title, { Text = Settings.Title })
+        SetProperty(Description, { Text = Settings.Description })
+        SetProperty(Notification, { Parent = Screen["Frame"] })
+        task.spawn(function()
+            local Duration = Settings.Duration or 2
+            Animations:Open(Notification, Setup.Transparency, true); Tween(Timer, Duration, { Size = UDim2.new(0, 0, 0, 4) });
+            task.wait(Duration)
+            Animations:Close(Notification)
+            task.wait(1)
+            Notification:Destroy()
+        end)
+    end
+
+    -- Component helpers
+    function Options:GetLabels(Component)
+        local Labels = Component:FindFirstChild("Labels")
+        return Labels.Title, Labels.Description
+    end
+
+    function Options:AddSection(Settings: { Name: string, Tab: Instance })
+        local Section = Clone(Components["Section"])
+        SetProperty(Section, { Text = Settings.Name, Parent = Settings.Tab, Visible = true })
+    end
+
+    function Options:AddButton(Settings: { Title: string, Description: string, Tab: Instance, Callback: any })
+        local Button = Clone(Components["Button"])
+        local Title, Description = Options:GetLabels(Button)
+        local RightImage = Instance.new("ImageLabel")
+        RightImage.Name = "RightImage"
+        RightImage.Size = UDim2.new(0, 22, 0, 22)
+        RightImage.Position = UDim2.new(1, -41, 0.5, -10)
+        RightImage.Image = "rbxassetid://7734010488"
+        RightImage.BackgroundTransparency = 1
+        RightImage.Parent = Button
+        Connect(Button.MouseButton1Click, Settings.Callback)
+        SetProperty(Title, { Text = Settings.Title })
+        SetProperty(Description, { Text = Settings.Description })
+        SetProperty(Button, { Name = Settings.Title, Parent = Settings.Tab, Visible = true, Size = UDim2.new(1, -20, 0, 0) })
+    end
+
+    function Options:AddInput(Settings: { Title: string, Description: string, Tab: Instance, Callback: any })
+        local Input = Clone(Components["Input"])
+        local Title, Description = Options:GetLabels(Input)
+        local TextBox = Input["Main"]["Input"]
+        Connect(Input.MouseButton1Click, function() TextBox:CaptureFocus() end)
+        Connect(TextBox.FocusLost, function() Settings.Callback(TextBox.Text) end)
+        SetProperty(Title, { Text = Settings.Title })
+        SetProperty(Description, { Text = Settings.Description })
+        SetProperty(Input, { Name = Settings.Title, Parent = Settings.Tab, Visible = true })
+    end
+
+    -- SKYBOY PATCH: Toggle off-state = track trắng + viền đen + nút đen; on-state giữ nguyên
+    function Options:AddToggle(Settings: { Title: string, Description: string, Default: boolean, Tab: Instance, Callback: any })
+        local Toggle = Clone(Components["Toggle"])
+        local Title, Description = Options:GetLabels(Toggle)
+        local On = Toggle["Value"]
+        local Main = Toggle["Main"]
+        local Circle = Main["Circle"]
+
+        -- ensure stroke for track
+        local stroke = Main:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke")
+        stroke.Thickness = 1
+        stroke.Color = Color3.fromRGB(0,0,0)
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Parent = Main
+
+        local function Set(Value:boolean)
+            if Value then
+                Tween(Main, .2, { BackgroundColor3 = Color3.fromRGB(153,155,255) })
+                Tween(Circle, .2, { BackgroundColor3 = Color3.fromRGB(255,255,255), Position = UDim2.new(1, -16, 0.5, 0) })
+                stroke.Color = Theme.Outline or Color3.fromRGB(40,40,40) -- giữ feel cũ khi bật
+            else
+                -- OFF: track trắng + viền đen, nút đen, nút nằm bên trái
+                Main.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                Circle.BackgroundColor3 = Color3.fromRGB(0,0,0)
+                Circle.Position = UDim2.new(0, 3, 0.5, 0)
+                stroke.Color = Color3.fromRGB(0,0,0)
+            end
+            On.Value = Value
+        end
+
+        Connect(Toggle.MouseButton1Click, function()
+            local Value = not On.Value
+            Set(Value)
+            Settings.Callback(Value)
+        end)
+
+        Set(Settings.Default)
+        SetProperty(Title, { Text = Settings.Title })
+        SetProperty(Description, { Text = Settings.Description })
+        SetProperty(Toggle, { Name = Settings.Title, Parent = Settings.Tab, Visible = true })
+    end
+
+    function Options:AddKeybind(Settings: { Title: string, Description: string, Tab: Instance, Callback: any })
+        local Dropdown = Clone(Components["Keybind"])
+        local Title, Description = Options:GetLabels(Dropdown)
+        local Bind = Dropdown["Main"].Options
+        local Mouse = { Enum.UserInputType.MouseButton1, Enum.UserInputType.MouseButton2, Enum.UserInputType.MouseButton3 }
+        local Types = { ["Mouse"] = "Enum.UserInputType.MouseButton", ["Key"] = "Enum.KeyCode." }
+        Connect(Dropdown.MouseButton1Click, function()
+            local Detect, Finished
+            SetProperty(Bind, { Text = "..." })
+            Detect = Connect(game.UserInputService.InputBegan, function(Key, Focused)
+                local InputType = (Key.UserInputType)
+                if not Finished and not Focused then
+                    Finished = true
+                    if table.find(Mouse, InputType) then
+                        Settings.Callback(Key)
+                        SetProperty(Bind, { Text = tostring(InputType):gsub(Types.Mouse, "MB") })
+                    elseif InputType == Enum.UserInputType.Keyboard then
+                        Settings.Callback(Key)
+                        SetProperty(Bind, { Text = tostring(Key.KeyCode):gsub(Types.Key, "") })
+                    end
+                end
+            end)
+        end)
+        SetProperty(Title, { Text = Settings.Title })
+        SetProperty(Description, { Text = Settings.Description })
+        SetProperty(Dropdown, { Name = Settings.Title, Parent = Settings.Tab, Visible = true })
+    end
+
+    -- SKYBOY PATCH: Dropdown popup item = nền trắng chữ đen; X để đóng; bỏ nút Refresh
+    function Options:AddDropdown(Settings: { Title: string, Description: string, Options: { [string]: any }, Tab: Instance, Callback: any, UpdateFunction: any? })
+        local Dropdown = Clone(Components["Dropdown"])
+        local Title, Description = Options:GetLabels(Dropdown)
+        local Text = Dropdown["Main"].Options
+
+        local state = {
+            options = Settings.Options or {},
+            selection = nil,
+            updateFunction = Settings.UpdateFunction
+        }
+
+        local function buildItem(Button, key, value, Example, ScrollingFrame)
             local BtnTitle, BtnDescription = Options:GetLabels(Button)
-            SetProperty(BtnTitle, { Text = key, TextColor3 = Theme.Title })
-            if BtnDescription then Destroy(BtnDescription) end
-            SetProperty(Button, {
-                Parent = ScrollingFrame,
-                Visible = true,
-                BackgroundColor3 = Theme.Component
-            })
-            Button.TextColor3 = Theme.Title
-            Button.AutoButtonColor = false
+            SetProperty(BtnTitle, { Text = key })
+            Destroy(BtnDescription)
+            -- nền trắng chữ đen
+            Button.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            BtnTitle.TextColor3 = Color3.fromRGB(0,0,0)
 
             Connect(Button.MouseButton1Click, function()
                 state.selection = key
                 Text.Text = key
-                Text.TextColor3 = Theme.Title
                 Settings.Callback(value)
-                Tween(BG, .2, { BackgroundTransparency = 1 })
+                Tween(BG, .25, { BackgroundTransparency = 1 })
                 Animations:Close(Example)
-                task.delay(0.2, function() Destroy(Example) end)
+                task.wait(0.15)
+                Destroy(Example)
             end)
         end
-    end
 
-    Connect(Dropdown.MouseButton1Click, function()
-        local Example = Clone(Examples["DropdownExample"])
-        if not Example then return end
-        local ScrollingFrame = Example.ScrollingFrame
-
-        -- BG fade-in
-        Tween(BG, .2, { BackgroundTransparency = 0.4 })
-        SetProperty(Example, {
-            Parent = Window,
-            BackgroundColor3 = Theme.Secondary
-        })
-        -- Top bar of popup: make it white & black text; add [X] close at right
-        if Example:FindFirstChild("Top") then
-            Example.Top.BackgroundColor3 = Theme.Component
-            if Example.Top:FindFirstChild("Title") then
-                Example.Top.Title.TextColor3 = Theme.Title
-            end
-            -- Clear default buttons if any
-            if Example.Top:FindFirstChild("Buttons") then
-                for _, b in ipairs(Example.Top.Buttons:GetChildren()) do
-                    if b:IsA("TextButton") then b:Destroy() end
+        local function refreshDropdownContent(Example, ScrollingFrame)
+            for _, child in ipairs(ScrollingFrame:GetChildren()) do
+                if child:IsA("Frame") or child:IsA("TextButton") then
+                    Destroy(child)
                 end
-                -- Keep container or remove it
-                Example.Top.Buttons:Destroy()
             end
-            -- Add [X] close button
-            local xBtn = Instance.new("TextButton")
-            xBtn.Name = "CloseX"
-            xBtn.AnchorPoint = Vector2.new(1, 0.5)
-            xBtn.Position = UDim2.new(1, -6, 0.5, 0)
-            xBtn.Size = UDim2.new(0, 24, 0, 24)
-            xBtn.Text = "X"
-            xBtn.BackgroundTransparency = 1
-            xBtn.TextColor3 = Theme.Title
-            xBtn.Parent = Example.Top
-            xBtn.AutoButtonColor = false
-            xBtn.MouseButton1Click:Connect(function()
-                Tween(BG, .2, { BackgroundTransparency = 1 })
+            for key, value in pairs(state.options) do
+                local Button = Clone(Examples["DropdownButtonExample"])
+                if Button then
+                    SetProperty(Button, { Parent = ScrollingFrame, Visible = true })
+                    buildItem(Button, key, value, Example, ScrollingFrame)
+                end
+            end
+        end
+
+        Connect(Dropdown.MouseButton1Click, function()
+            local Example = Clone(Examples["DropdownExample"]); if not Example then return end
+            local ScrollingFrame = Example.ScrollingFrame
+
+            -- nền popup theo GUI của bạn; quan trọng là item trắng/đen
+            Tween(BG, .25, { BackgroundTransparency = 0.6 })
+            SetProperty(Example, { Parent = Window })
+            Animations:Open(Example, 0, true)
+
+            -- BỎ refresh; thay X để đóng
+            for _, b in ipairs(Example.Top.Buttons:GetChildren()) do
+                b:Destroy()
+            end
+            local CloseBtn = Instance.new("TextButton")
+            CloseBtn.Name = "Close"
+            CloseBtn.Size = UDim2.new(0, 30, 0, 20)
+            CloseBtn.Position = UDim2.new(1, -35, 0, -2)
+            CloseBtn.BackgroundTransparency = 1
+            CloseBtn.Text = "X"
+            CloseBtn.Font = Enum.Font.GothamBold
+            CloseBtn.TextSize = 14
+            CloseBtn.TextColor3 = Color3.fromRGB(0,0,0)
+            CloseBtn.Parent = Example.Top
+            Connect(CloseBtn.MouseButton1Click, function()
+                Tween(BG, .25, { BackgroundTransparency = 1 })
                 Animations:Close(Example)
-                task.delay(0.2, function() Destroy(Example) end)
+                task.wait(0.15)
+                Destroy(Example)
             end)
-        end
 
-        -- Colors inside list
-        ScrollingFrame.BackgroundTransparency = 1
-        if ScrollingFrame:FindFirstChildOfClass("UIListLayout") == nil then
-            local l = Instance.new("UIListLayout")
-            l.SortOrder = Enum.SortOrder.LayoutOrder
-            l.Parent = ScrollingFrame
-        end
-
-        Animations:Open(Example, 0, true)
-        renderList(Example, ScrollingFrame)
-    end)
-
-    SetProperty(Title, { Text = Settings.Title, TextColor3 = Theme.Title })
-    SetProperty(Description, { Text = Settings.Description, TextColor3 = Theme.Description })
-    SetProperty(Dropdown, { Name = Settings.Title, Parent = Settings.Tab, Visible = true, BackgroundColor3 = Theme.Component })
-    Text.TextColor3 = Theme.Title
-
-    local controller = {}
-    function controller:Update(newOptions)
-        if type(newOptions) ~= "table" then
-            if state.updateFunction then
-                newOptions = state.updateFunction()
-            else
-                warn("Dropdown:Update requires a table of options or an UpdateFunction.")
-                return
-            end
-        end
-        state.options = newOptions
-        if state.selection and not state.options[state.selection] then
-            state.selection = nil
-            Text.Text = "Select..."
-            Text.TextColor3 = Theme.Description
-            if Settings.Callback then Settings.Callback(nil) end
-        end
-    end
-    function controller:Refresh()
-        if state.updateFunction then
-            self:Update(state.updateFunction()); return true
-        end
-        return false
-    end
-    function controller:GetOptions() return state.options end
-    function controller:GetSelection() return state.selection end
-    return controller
-end
-
--- ===== MultiDropdown with X close (no Refresh) =====
-function Options:AddMultiDropdown(Settings: { Title: string, Description: string, Options: { [string]: any }, Tab: Instance, Callback: any, UpdateFunction: any? })
-    local Dropdown = Clone(Components["Dropdown"])
-    local Title, Description = Options:GetLabels(Dropdown)
-    local Text = Dropdown["Main"].Options
-
-    local state = {
-        options = Settings.Options or {},
-        selected = {},
-        updateFunction = Settings.UpdateFunction
-    }
-
-    local function emit()
-        local values = {}
-        for _, key in ipairs(state.selected) do
-            if state.options[key] ~= nil then
-                table.insert(values, state.options[key])
-            end
-        end
-        Settings.Callback(values)
-        Text.Text = (#state.selected > 0) and table.concat(state.selected, ", ") or "Select..."
-        Text.TextColor3 = Theme.Title
-    end
-
-    local function renderList(Example, ScrollingFrame)
-        for _, child in ipairs(ScrollingFrame:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextButton") then
-                Destroy(child)
-            end
-        end
-        for key, _ in pairs(state.options) do
-            local Button = Clone(Examples["DropdownButtonExample"])
-            if not Button then continue end
-            local BtnTitle, BtnDescription = Options:GetLabels(Button)
-
-            local isSelected = table.find(state.selected, key) ~= nil
-
-            local Checkmark = Instance.new("ImageLabel")
-            Checkmark.Name = "Checkmark"
-            Checkmark.Size = UDim2.new(0, 16, 0, 16)
-            Checkmark.Position = UDim2.new(1, -20, 0.5, -8)
-            Checkmark.Image = "rbxassetid://6031068421"
-            Checkmark.BackgroundTransparency = 1
-            Checkmark.ImageColor3 = Theme.Icon
-            Checkmark.Visible = isSelected
-            Checkmark.Parent = Button
-
-            SetProperty(BtnTitle, { Text = key, TextColor3 = Theme.Title })
-            if BtnDescription then Destroy(BtnDescription) end
-            SetProperty(Button, {
-                Parent = ScrollingFrame,
-                Visible = true,
-                BackgroundColor3 = Theme.Component
-            })
-            Button.TextColor3 = Theme.Title
-            Button.AutoButtonColor = false
-
-            Connect(Button.MouseButton1Click, function()
-                local idx = table.find(state.selected, key)
-                if idx then
-                    table.remove(state.selected, idx)
-                    Checkmark.Visible = false
-                else
-                    table.insert(state.selected, key)
-                    Checkmark.Visible = true
-                end
-                emit()
-            end)
-        end
-    end
-
-    Connect(Dropdown.MouseButton1Click, function()
-        local Example = Clone(Examples["DropdownExample"])
-        if not Example then return end
-        local ScrollingFrame = Example.ScrollingFrame
-
-        Tween(BG, .2, { BackgroundTransparency = 0.4 })
-        SetProperty(Example, { Parent = Window, BackgroundColor3 = Theme.Secondary })
-
-        if Example:FindFirstChild("Top") then
-            Example.Top.BackgroundColor3 = Theme.Component
-            if Example.Top:FindFirstChild("Title") then
-                Example.Top.Title.TextColor3 = Theme.Title
-            end
-            if Example.Top:FindFirstChild("Buttons") then
-                for _, b in ipairs(Example.Top.Buttons:GetChildren()) do
-                    if b:IsA("TextButton") then b:Destroy() end
-                end
-                Example.Top.Buttons:Destroy()
-            end
-            local xBtn = Instance.new("TextButton")
-            xBtn.Name = "CloseX"
-            xBtn.AnchorPoint = Vector2.new(1, 0.5)
-            xBtn.Position = UDim2.new(1, -6, 0.5, 0)
-            xBtn.Size = UDim2.new(0, 24, 0, 24)
-            xBtn.Text = "X"
-            xBtn.BackgroundTransparency = 1
-            xBtn.TextColor3 = Theme.Title
-            xBtn.Parent = Example.Top
-            xBtn.AutoButtonColor = false
-            xBtn.MouseButton1Click:Connect(function()
-                Tween(BG, .2, { BackgroundTransparency = 1 })
-                Animations:Close(Example)
-                task.delay(0.2, function() Destroy(Example) end)
-            end)
-        end
-
-        ScrollingFrame.BackgroundTransparency = 1
-        if ScrollingFrame:FindFirstChildOfClass("UIListLayout") == nil then
-            local l = Instance.new("UIListLayout")
-            l.SortOrder = Enum.SortOrder.LayoutOrder
-            l.Parent = ScrollingFrame
-        end
-
-        Animations:Open(Example, 0, true)
-        renderList(Example, ScrollingFrame)
-    end)
-
-    SetProperty(Title, { Text = Settings.Title, TextColor3 = Theme.Title })
-    SetProperty(Description, { Text = Settings.Description, TextColor3 = Theme.Description })
-    SetProperty(Dropdown, { Name = Settings.Title, Parent = Settings.Tab, Visible = true, BackgroundColor3 = Theme.Component })
-    Text.TextColor3 = Theme.Title
-
-    local controller = {}
-    function controller:Update(newOptions)
-        if type(newOptions) ~= "table" then
-            if state.updateFunction then
-                newOptions = state.updateFunction()
-            else
-                warn("MultiDropdown:Update requires a table of options or an UpdateFunction.")
-                return
-            end
-        end
-        state.options = newOptions
-        local selectionChanged = false
-        local kept = {}
-        for _, key in ipairs(state.selected) do
-            if state.options[key] ~= nil then
-                table.insert(kept, key)
-            else
-                selectionChanged = true
-            end
-        end
-        if selectionChanged then
-            state.selected = kept
-            emit()
-        end
-    end
-    function controller:Refresh()
-        if state.updateFunction then self:Update(state.updateFunction()); return true end
-        return false
-    end
-    function controller:GetOptions() return state.options end
-    function controller:GetSelections() return state.selected end
-    return controller
-end
-
-function Options:AddSlider(Settings: { Title: string, Description: string, MaxValue: number, AllowDecimals: boolean, DecimalAmount: number, Tab: Instance, Callback: any })
-    local Slider = Clone(Components["Slider"])
-    local Title, Description = Options:GetLabels(Slider)
-
-    local Main = Slider["Slider"]
-    local Amount = Main["Main"].Input
-    local Slide = Main["Slide"]
-    local Fire = Slide["Fire"]
-    local Fill = Slide["Highlight"]
-    local Circle = Fill["Circle"]
-
-    local Active = false
-    local Value = 0
-    
-    local function SetNumber(Number)
-        if Settings.AllowDecimals then
-            local Power = 10 ^ (Settings.DecimalAmount or 2)
-            Number = math.floor(Number * Power + 0.5) / Power
-        else
-            Number = math.round(Number)
-        end
-        return Number
-    end
-
-    local function Update(Number)
-        local Scale = (Player.Mouse.X - Slide.AbsolutePosition.X) / Slide.AbsoluteSize.X
-        Scale = (Scale > 1 and 1) or (Scale < 0 and 0) or Scale
-        if Number then Number = (Number > Settings.MaxValue and Settings.MaxValue) or (Number < 0 and 0) or Number end
-        Value = SetNumber(Number or (Scale * Settings.MaxValue))
-        Amount.Text = Value
-        Fill.Size = UDim2.fromScale((Number and Number / Settings.MaxValue) or Scale, 1)
-        Settings.Callback(Value)
-    end
-
-    local function Activate()
-        Active = true
-        repeat task.wait(); Update() until not Active
-    end
-    
-    Connect(Amount.FocusLost, function()
-        Update(tonumber(Amount.Text) or 0)
-    end)
-    Connect(Fire.MouseButton1Down, Activate)
-    Connect(Services.Input.InputEnded, function(Input)
-        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-            Active = false
-        end
-    end)
-
-    Fill.Size = UDim2.fromScale(Value, 1)
-    SetProperty(Title, { Text = Settings.Title, TextColor3 = Theme.Title })
-    SetProperty(Description, { Text = Settings.Description, TextColor3 = Theme.Description })
-    SetProperty(Slider, {
-        Name = Settings.Title,
-        Parent = Settings.Tab,
-        Visible = true,
-        BackgroundColor3 = Theme.Component
-    })
-    Amount.TextColor3 = Theme.Title
-    Main.BackgroundColor3 = Theme.Component
-    Slide.BackgroundColor3 = Theme.Interactables
-    Circle.BackgroundColor3 = Theme.Title -- knob đen trên thanh highlight sáng
-end
-
-function Options:AddParagraph(Settings: { Title: string, Description: string, Tab: Instance, UpdateFunction: any? })
-    local Paragraph = Clone(Components["Paragraph"])
-    local TitleLabel, DescriptionLabel = Options:GetLabels(Paragraph)
-    SetProperty(TitleLabel, { Text = Settings.Title or "Paragraph", TextColor3 = Theme.Title })
-    SetProperty(DescriptionLabel, { Text = Settings.Description or "", TextColor3 = Theme.Description })
-    SetProperty(Paragraph, { Parent = Settings.Tab, Visible = true, BackgroundColor3 = Theme.Component })
-
-    if Settings.UpdateFunction then
-        task.spawn(function()
-            while Paragraph.Parent do
-                local newData = Settings.UpdateFunction()
-                if newData and type(newData) == "table" then
-                    if newData.Title then TitleLabel.Text = newData.Title end
-                    if newData.Description then DescriptionLabel.Text = newData.Description end
-                end
-                task.wait(1)
-            end
+            refreshDropdownContent(Example, ScrollingFrame)
         end)
-    end
-    return Paragraph
-end
 
---// Theme propagation
-local Themes = {
-    Names = {
-        ["Paragraph"] = function(Label)
-            if Label:IsA("TextButton") then
-                Label.BackgroundColor3 = Theme.Component
+        SetProperty(Title, { Text = Settings.Title })
+        SetProperty(Description, { Text = Settings.Description })
+        SetProperty(Dropdown, { Name = Settings.Title, Parent = Settings.Tab, Visible = true })
+
+        local controller = {}
+        function controller:Update(newOptions)
+            if type(newOptions) ~= "table" then
+                if state.updateFunction then
+                    newOptions = state.updateFunction()
+                else
+                    warn("Dropdown:Update requires a table of options or an UpdateFunction.")
+                    return
+                end
             end
-        end,
-        ["Title"] = function(Label)
-            if Label:IsA("TextLabel") then Label.TextColor3 = Theme.Title end
-        end,
-        ["Description"] = function(Label)
-            if Label:IsA("TextLabel") then Label.TextColor3 = Theme.Description end
-        end,
-        ["Section"] = function(Label)
-            if Label:IsA("TextLabel") then Label.TextColor3 = Theme.Title end
-        end,
-        ["Options"] = function(Label)
-            if Label:IsA("TextLabel") and Label.Parent.Name == "Main" then
-                Label.TextColor3 = Theme.Title
+            state.options = newOptions
+            if state.selection and not state.options[state.selection] then
+                state.selection = nil
+                Text.Text = "Select..."
+                if Settings.Callback then Settings.Callback(nil) end
             end
-        end,
-        ["Notification"] = function(Label)
-            if Label:IsA("CanvasGroup") then
-                Label.BackgroundColor3 = Theme.Primary
-                if Label:FindFirstChildOfClass("UIStroke") then
+        end
+        function controller:Refresh()
+            if state.updateFunction then
+                self:Update(state.updateFunction()); return true
+            end
+            return false
+        end
+        function controller:GetOptions() return state.options end
+        function controller:GetSelection() return state.selection end
+        return controller
+    end
+
+    -- SKYBOY PATCH: MultiDropdown – item nền trắng chữ đen, X để đóng popup
+    function Options:AddMultiDropdown(Settings: { Title: string, Description: string, Options: { [string]: any }, Tab: Instance, Callback: any, UpdateFunction: any? })
+        local Dropdown = Clone(Components["Dropdown"])
+        local Title, Description = Options:GetLabels(Dropdown)
+        local Text = Dropdown["Main"].Options
+
+        local state = {
+            options = Settings.Options or {},
+            selected = {},
+            updateFunction = Settings.UpdateFunction
+        }
+
+        local function updateCallback()
+            local selectedValues = {}
+            for _, key in ipairs(state.selected) do
+                if state.options[key] then table.insert(selectedValues, state.options[key]) end
+            end
+            Settings.Callback(selectedValues)
+            Text.Text = #state.selected > 0 and table.concat(state.selected, ", ") or "Select..."
+        end
+
+        local function refreshDropdownContent(Example, ScrollingFrame)
+            for _, child in ipairs(ScrollingFrame:GetChildren()) do
+                if child:IsA("Frame") or child:IsA("TextButton") then Destroy(child) end
+            end
+            for key, value in pairs(state.options) do
+                local Button = Clone(Examples["DropdownButtonExample"])
+                if Button then
+                    local BtnTitle, BtnDescription = Options:GetLabels(Button)
+                    Destroy(BtnDescription)
+                    Button.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                    BtnTitle.TextColor3 = Color3.fromRGB(0,0,0)
+
+                    local isSelected = table.find(state.selected, key) and true or false
+                    local Checkmark = Instance.new("ImageLabel")
+                    Checkmark.Name = "Checkmark"
+                    Checkmark.Size = UDim2.new(0, 16, 0, 16)
+                    Checkmark.Position = UDim2.new(1, -20, 0.5, -8)
+                    Checkmark.Image = "rbxassetid://6031068421"
+                    Checkmark.BackgroundTransparency = 1
+                    Checkmark.Visible = isSelected
+                    Checkmark.Parent = Button
+
+                    SetProperty(BtnTitle, { Text = key })
+                    SetProperty(Button, { Parent = ScrollingFrame, Visible = true })
+
+                    Connect(Button.MouseButton1Click, function()
+                        local idx = table.find(state.selected, key)
+                        if idx then
+                            table.remove(state.selected, idx)
+                            Checkmark.Visible = false
+                        else
+                            table.insert(state.selected, key)
+                            Checkmark.Visible = true
+                        end
+                        updateCallback()
+                    end)
+                end
+            end
+        end
+
+        Connect(Dropdown.MouseButton1Click, function()
+            local Example = Clone(Examples["DropdownExample"]); if not Example then return end
+            local ScrollingFrame = Example.ScrollingFrame
+            Tween(BG, .25, { BackgroundTransparency = 0.6 })
+            SetProperty(Example, { Parent = Window })
+            Animations:Open(Example, 0, true)
+
+            for _, b in ipairs(Example.Top.Buttons:GetChildren()) do b:Destroy() end
+            local CloseBtn = Instance.new("TextButton")
+            CloseBtn.Name = "Close"
+            CloseBtn.Size = UDim2.new(0, 30, 0, 20)
+            CloseBtn.Position = UDim2.new(1, -35, 0, -2)
+            CloseBtn.BackgroundTransparency = 1
+            CloseBtn.Text = "X"
+            CloseBtn.Font = Enum.Font.GothamBold
+            CloseBtn.TextSize = 14
+            CloseBtn.TextColor3 = Color3.fromRGB(0,0,0)
+            CloseBtn.Parent = Example.Top
+            Connect(CloseBtn.MouseButton1Click, function()
+                Tween(BG, .25, { BackgroundTransparency = 1 })
+                Animations:Close(Example)
+                task.wait(0.15)
+                Destroy(Example)
+            end)
+
+            refreshDropdownContent(Example, ScrollingFrame)
+        end)
+
+        SetProperty(Title, { Text = Settings.Title })
+        SetProperty(Description, { Text = Settings.Description })
+        SetProperty(Dropdown, { Name = Settings.Title, Parent = Settings.Tab, Visible = true })
+
+        local controller = {}
+        function controller:Update(newOptions)
+            if type(newOptions) ~= "table" then
+                if state.updateFunction then newOptions = state.updateFunction() else warn("MultiDropdown:Update requires a table or UpdateFunction.") return end
+            end
+            state.options = newOptions
+            local selectionChanged = false
+            local newSelected = {}
+            for _, sel in ipairs(state.selected) do
+                if state.options[sel] then table.insert(newSelected, sel) else selectionChanged = true end
+            end
+            if selectionChanged then state.selected = newSelected; updateCallback() end
+        end
+        function controller:Refresh()
+            if state.updateFunction then self:Update(state.updateFunction()); return true end
+            return false
+        end
+        function controller:GetOptions() return state.options end
+        function controller:GetSelections() return state.selected end
+        return controller
+    end
+
+    function Options:AddSlider(Settings: { Title: string, Description: string, MaxValue: number, AllowDecimals: boolean, DecimalAmount: number, Tab: Instance, Callback: any })
+        local Slider = Clone(Components["Slider"])
+        local Title, Description = Options:GetLabels(Slider)
+        local Main = Slider["Slider"]
+        local Amount = Main["Main"].Input
+        local Slide = Main["Slide"]
+        local Fire = Slide["Fire"]
+        local Fill = Slide["Highlight"]
+        local Circle = Fill["Circle"]
+        local Active = false
+        local Value = 0
+        local function SetNumber(Number)
+            if Settings.AllowDecimals then
+                local Power = 10 ^ (Settings.DecimalAmount or 2)
+                Number = math.floor(Number * Power + 0.5) / Power
+            else
+                Number = math.round(Number)
+            end
+            return Number
+        end
+        local function Update(Number)
+            local Scale = (Player.Mouse.X - Slide.AbsolutePosition.X) / Slide.AbsoluteSize.X
+            Scale = (Scale > 1 and 1) or (Scale < 0 and 0) or Scale
+            if Number then Number = (Number > Settings.MaxValue and Settings.MaxValue) or (Number < 0 and 0) or Number end
+            Value = SetNumber(Number or (Scale * Settings.MaxValue))
+            Amount.Text = Value
+            Fill.Size = UDim2.fromScale((Number and Number / Settings.MaxValue) or Scale, 1)
+            Settings.Callback(Value)
+        end
+        local function Activate()
+            Active = true
+            repeat task.wait() Update() until not Active
+        end
+        Connect(Amount.FocusLost, function() Update(tonumber(Amount.Text) or 0) end)
+        Connect(Fire.MouseButton1Down, Activate)
+        Connect(Services.Input.InputEnded, function(Input)
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then Active = false end
+        end)
+        Fill.Size = UDim2.fromScale(Value, 1)
+        SetProperty(Title, { Text = Settings.Title })
+        SetProperty(Description, { Text = Settings.Description })
+        SetProperty(Slider, { Name = Settings.Title, Parent = Settings.Tab, Visible = true })
+    end
+
+    function Options:AddParagraph(Settings: { Title: string, Description: string, Tab: Instance, UpdateFunction: any? })
+        local Paragraph = Clone(Components["Paragraph"])
+        local TitleLabel, DescriptionLabel = Options:GetLabels(Paragraph)
+        SetProperty(TitleLabel, { Text = Settings.Title or "Paragraph" })
+        SetProperty(DescriptionLabel, { Text = Settings.Description or "" })
+        SetProperty(Paragraph, { Parent = Settings.Tab, Visible = true })
+        if Settings.UpdateFunction then
+            task.spawn(function()
+                while Paragraph.Parent do
+                    local newData = Settings.UpdateFunction()
+                    if newData and type(newData) == "table" then
+                        if newData.Title then TitleLabel.Text = newData.Title end
+                        if newData.Description then DescriptionLabel.Text = newData.Description end
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+        return Paragraph
+    end
+
+    -- Theme mapping
+    local Themes = {
+        Names = {
+            ["Paragraph"] = function(Label)
+                if Label:IsA("TextButton") then
+                    Label.BackgroundColor3 = Color(Theme.Component, 5, "Dark")
+                end
+            end,
+            ["Title"] = function(Label)
+                if Label:IsA("TextLabel") then
+                    -- SKYBOY PATCH: ưu tiên chữ đen để tương phản GUI trắng
+                    Label.TextColor3 = Color3.fromRGB(0,0,0)
+                end
+            end,
+            ["Description"] = function(Label)
+                if Label:IsA("TextLabel") then
+                    Label.TextColor3 = Theme.Description
+                end
+            end,
+            ["Section"] = function(Label)
+                if Label:IsA("TextLabel") then
+                    Label.TextColor3 = Theme.Title
+                end
+            end,
+            ["Options"] = function(Label)
+                if Label:IsA("TextLabel") and Label.Parent.Name == "Main" then
+                    Label.TextColor3 = Theme.Title
+                end
+            end,
+            ["Notification"] = function(Label)
+                if Label:IsA("CanvasGroup") then
+                    Label.BackgroundColor3 = Theme.Primary
                     Label.UIStroke.Color = Theme.Outline
                 end
-            end
-        end,
-        ["TextLabel"] = function(Label)
-            if Label:IsA("TextLabel") and Label.Parent:FindFirstChild("List") then
-                Label.TextColor3 = Theme.Tab
-            end
-        end,
-        ["Main"] = function(Label)
-            if Label:IsA("Frame") then
-                if Label.Parent == Window then
-                    Label.BackgroundColor3 = Theme.Secondary
-                elseif Label.Parent:FindFirstChild("Value") then
-                    local Circle = Label:FindFirstChild("Circle")
-                    Label.BackgroundColor3 = Theme.Component
-                    if Circle and Circle:IsA("Frame") then
-                        Circle.BackgroundColor3 = Theme.Title
+            end,
+            ["TextLabel"] = function(Label)
+                if Label:IsA("TextLabel") and Label.Parent:FindFirstChild("List") then
+                    Label.TextColor3 = Theme.Tab
+                end
+            end,
+            ["Main"] = function(Label)
+                if Label:IsA("Frame") then
+                    if Label.Parent == Window then
+                        Label.BackgroundColor3 = Theme.Secondary
+                    elseif Label.Parent:FindFirstChild("Value") then
+                        -- Toggle handled in AddToggle patch
+                    else
+                        Label.BackgroundColor3 = Theme.Interactables
                     end
-                else
+                elseif Label:FindFirstChild("Padding") then
+                    Label.TextColor3 = Theme.Title
+                end
+            end,
+            ["Amount"] = function(Label)
+                if Label:IsA("Frame") then
+                    Label.BackgroundColor3 = Theme.Interactables
+                end
+            end,
+            ["Slide"] = function(Label)
+                if Label:IsA("Frame") then
+                    Label.BackgroundColor3 = Theme.Interactables
+                end
+            end,
+            ["Input"] = function(Label)
+                if Label:IsA("TextLabel") then
+                    Label.TextColor3 = Theme.Title
+                elseif Label:FindFirstChild("Labels") then
+                    Label.BackgroundColor3 = Theme.Component
+                elseif Label:IsA("TextBox") and Label.Parent.Name == "Main" then
+                    Label.TextColor3 = Theme.Title
+                end
+            end,
+            ["Outline"] = function(Stroke)
+                if Stroke:IsA("UIStroke") then
+                    Stroke.Color = Theme.Outline
+                end
+            end,
+            ["DropdownExample"] = function(Label)
+                Label.BackgroundColor3 = Theme.Secondary
+            end,
+            ["Underline"] = function(Label)
+                if Label:IsA("Frame") then
+                    Label.BackgroundColor3 = Theme.Outline
+                end
+            end,
+        },
+        Classes = {
+            ["ImageLabel"] = function(Label)
+                if Label.Image ~= "rbxassetid://6644618143" then
+                    Label.ImageColor3 = Theme.Icon
+                end
+            end,
+            ["TextLabel"] = function(Label)
+                if Label:FindFirstChild("Padding") then
+                    -- SKYBOY PATCH: text đen cho hợp GUI trắng
+                    Label.TextColor3 = Color3.fromRGB(0,0,0)
+                end
+            end,
+            ["TextButton"] = function(Label)
+                if Label:FindFirstChild("Labels") then
                     Label.BackgroundColor3 = Theme.Component
                 end
-            elseif Label:FindFirstChild("Padding") then
-                Label.TextColor3 = Theme.Title
-            end
-        end,
-        ["Amount"] = function(Label)
-            if Label:IsA("Frame") then
-                Label.BackgroundColor3 = Theme.Component
-            end
-        end,
-        ["Slide"] = function(Label)
-            if Label:IsA("Frame") then
-                Label.BackgroundColor3 = Theme.Interactables
-            end
-        end,
-        ["Input"] = function(Label)
-            if Label:IsA("TextLabel") then
-                Label.TextColor3 = Theme.Title
-            elseif Label:FindFirstChild("Labels") then
-                Label.BackgroundColor3 = Theme.Component
-            elseif Label:IsA("TextBox") and Label.Parent.Name == "Main" then
-                Label.TextColor3 = Theme.Title
-            end
-        end,
-        ["Outline"] = function(Stroke)
-            if Stroke:IsA("UIStroke") then
-                Stroke.Color = Theme.Outline
-            end
-        end,
-        ["DropdownExample"] = function(Label)
-            Label.BackgroundColor3 = Theme.Secondary
-        end,
-        ["Underline"] = function(Label)
-            if Label:IsA("Frame") then
-                Label.BackgroundColor3 = Theme.Outline
-            end
-        end,
-    },
-    Classes = {
-        ["ImageLabel"] = function(Label)
-            if Label.Image ~= "rbxassetid://6644618143" then
-                Label.ImageColor3 = Theme.Icon
-            end
-        end,
-        ["TextLabel"] = function(Label)
-            if Label:FindFirstChild("Padding") then
-                Label.TextColor3 = Theme.Title
-            end
-        end,
-        ["TextButton"] = function(Label)
-            if Label:FindFirstChild("Labels") then
-                Label.BackgroundColor3 = Theme.Component
-                local t, d = Label.Labels:FindFirstChild("Title"), Label.Labels:FindFirstChild("Description")
-                if t then t.TextColor3 = Theme.Title end
-                if d then d.TextColor3 = Theme.Description end
-            end
-        end,
-        ["ScrollingFrame"] = function(Label)
-            Label.ScrollBarImageColor3 = Theme.Outline
-            Label.BackgroundTransparency = 1
-        end,
-    },
-}
+            end,
+            ["ScrollingFrame"] = function(Label)
+                Label.ScrollBarImageColor3 = Theme.Component
+            end,
+        },
+    }
 
-function Options:SetTheme(Info)
-    Theme = Info or Theme
-    Window.BackgroundColor3 = Theme.Primary
-    Holder.BackgroundColor3 = Theme.Secondary
-    if Window:FindFirstChildOfClass("UIStroke") then Window.UIStroke.Color = Theme.Shadow end
-
-    for _, Descendant in next, Screen:GetDescendants() do
-        local Name, Class = Themes.Names[Descendant.Name], Themes.Classes[Descendant.ClassName]
-        if Name then Name(Descendant) elseif Class then Class(Descendant) end
-    end
-end
-
---// Settings at runtime
-function Options:SetSetting(Setting, Value)
-    if Setting == "Size" then
-        Window.Size = Value
-        Setup.Size = Value
-    elseif Setting == "Transparency" then
-        Window.GroupTransparency = Value
-        Setup.Transparency = Value
-        for _, Notification in next, Screen:GetDescendants() do
-            if Notification:IsA("CanvasGroup") and Notification.Name == "Notification" then
-                Notification.GroupTransparency = Value
-            end
+    function Options:SetTheme(Info)
+        Theme = Info or Theme
+        Window.BackgroundColor3 = Theme.Primary
+        Holder.BackgroundColor3 = Theme.Secondary
+        Window.UIStroke.Color = Theme.Shadow
+        for _, Descendant in next, Screen:GetDescendants() do
+            local Name, Class =  Themes.Names[Descendant.Name],  Themes.Classes[Descendant.ClassName]
+            if Name then Name(Descendant) elseif Class then Class(Descendant) end
         end
-    elseif Setting == "Blur" then
-        local Already, Root = Blurs[Settings.Title], nil
-        if Already then Root = Already["root"] end
-        if Value then
-            BlurEnabled = true
-            if not Already or not Root then
-                Blurs[Settings.Title] = Blur.new(Window, 0.5)
-            elseif Root and not Root.Parent then
-                Root.Parent = workspace.CurrentCamera
-            end
-        elseif not Value and (Already and Root and Root.Parent) then
-            Root.Parent = nil
-            BlurEnabled = false
-        end
-    elseif Setting == "Theme" and typeof(Value) == "table" then
-        Options:SetTheme(Value)
-    elseif Setting == "Keybind" then
-        Setup.Keybind = Value
-    else
-        warn("Unknown or unsupported setting.")
     end
-end
 
--- Mount window
-SetProperty(Window, { Size = Settings.Size, Visible = true, Parent = Screen })
-Options:SetTheme(Theme)
-Animations:Open(Window, Settings.Transparency or 0)
+    function Options:SetSetting(Setting, Value)
+        if Setting == "Size" then
+            Window.Size = Value
+            Setup.Size = Value
+        elseif Setting == "Transparency" then
+            Window.GroupTransparency = Value
+            Setup.Transparency = Value
+            for _, Notification in next, Screen:GetDescendants() do
+                if Notification:IsA("CanvasGroup") and Notification.Name == "Notification" then
+                    Notification.GroupTransparency = Value
+                end
+            end
+        elseif Setting == "Blur" then
+            local Already, Root = Blurs[Settings.Title], nil
+            if Already then Root = Blurs[Settings.Title]["root"] end
+            if Value then
+                BlurEnabled = true
+                if not Already or not Root then
+                    Blurs[Settings.Title] = Blur.new(Window, 5)
+                elseif Root and not Root.Parent then
+                    Root.Parent = workspace.CurrentCamera
+                end
+            elseif not Value and (Already and Root and Root.Parent) then
+                Root.Parent = nil
+                BlurEnabled = false
+            end
+        elseif Setting == "Theme" and typeof(Value) == "table" then
+            Options:SetTheme(Value)
+        elseif Setting == "Keybind" then
+            Setup.Keybind = Value
+        else
+            warn("Tried to change a setting that doesn't exist or isn't available to change.")
+        end
+    end
 
-return Options
+    SetProperty(Window, { Size = Settings.Size, Visible = true, Parent = Screen })
+    Animations:Open(Window, Settings.Transparency or 0)
+    return Options
 end
 
 return Library
